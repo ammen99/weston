@@ -769,6 +769,7 @@ draw_view(struct weston_view *ev, struct weston_output *output,
 		shader_uniforms(&gr->solid_shader, ev, output);
 	}
 
+    gr->current_shader = NULL;
 	use_shader(gr, gs->shader);
 	shader_uniforms(gs->shader, ev, output);
 
@@ -810,6 +811,7 @@ draw_view(struct weston_view *ev, struct weston_output *output,
 			 * that forces texture alpha = 1.0.
 			 * Xwayland surfaces need this.
 			 */
+            gr->current_shader = NULL;
 			use_shader(gr, &gr->texture_shader_rgbx);
 			shader_uniforms(&gr->texture_shader_rgbx, ev, output);
 		}
@@ -823,6 +825,7 @@ draw_view(struct weston_view *ev, struct weston_output *output,
 	}
 
 	if (pixman_region32_not_empty(&surface_blend)) {
+        gr->current_shader = NULL;
 		use_shader(gr, gs->shader);
 		glEnable(GL_BLEND);
 		repaint_region(ev, &repaint, &surface_blend);
@@ -948,6 +951,7 @@ draw_output_borders(struct weston_output *output,
 	full_height = output->current_mode->height + top->height + bottom->height;
 
 	glDisable(GL_BLEND);
+    gr->current_shader = NULL;
 	use_shader(gr, shader);
 
 	glViewport(0, 0, full_width, full_height);
@@ -2160,6 +2164,8 @@ gl_renderer_surface_copy_content(struct weston_surface *surface,
 
 	glViewport(0, 0, cw, ch);
 	glDisable(GL_BLEND);
+
+    gr->current_shader = NULL;
 	use_shader(gr, gs->shader);
 	if (gs->y_inverted)
 		proj = projmat_normal;
