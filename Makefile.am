@@ -71,7 +71,8 @@ install-libweston_moduleLTLIBRARIES install-moduleLTLIBRARIES: install-libLTLIBR
 
 lib_LTLIBRARIES = libweston-@LIBWESTON_MAJOR@.la
 libweston_@LIBWESTON_MAJOR@_la_CPPFLAGS = $(AM_CPPFLAGS) -DIN_WESTON
-libweston_@LIBWESTON_MAJOR@_la_CFLAGS = $(AM_CFLAGS) $(COMPOSITOR_CFLAGS) $(LIBUNWIND_CFLAGS)
+libweston_@LIBWESTON_MAJOR@_la_CFLAGS = $(AM_CFLAGS) \
+	$(COMPOSITOR_CFLAGS) $(EGL_CFLAGS) $(LIBUNWIND_CFLAGS) $(LIBDRM_CFLAGS)
 libweston_@LIBWESTON_MAJOR@_la_LIBADD = $(COMPOSITOR_LIBS) $(LIBUNWIND_LIBS) \
 	$(DLOPEN_LIBS) -lm $(CLOCK_GETTIME_LIBS) \
 	$(LIBINPUT_BACKEND_LIBS) libshared.la
@@ -105,6 +106,8 @@ libweston_@LIBWESTON_MAJOR@_la_SOURCES =			\
 	libweston/timeline-object.h			\
 	libweston/linux-dmabuf.c			\
 	libweston/linux-dmabuf.h			\
+	libweston/pixel-formats.c			\
+	libweston/pixel-formats.h			\
 	shared/helpers.h				\
 	shared/matrix.c					\
 	shared/matrix.h					\
@@ -219,7 +222,11 @@ libsession_helper_la_SOURCES =			\
 	libweston/launcher-weston-launch.c	\
 	libweston/launcher-direct.c
 libsession_helper_la_CFLAGS = $(AM_CFLAGS) $(LIBDRM_CFLAGS) $(PIXMAN_CFLAGS) $(COMPOSITOR_CFLAGS)
-libsession_helper_la_LIBADD = libweston-@LIBWESTON_MAJOR@.la $(LIBDRM_LIBS)
+libsession_helper_la_LIBADD = libweston-@LIBWESTON_MAJOR@.la
+
+if ENABLE_DRM_COMPOSITOR
+libsession_helper_la_LIBADD += $(LIBDRM_LIBS)
+endif
 
 if ENABLE_DBUS
 if HAVE_SYSTEMD_LOGIN
@@ -252,7 +259,11 @@ weston_launch_CFLAGS=				\
 	$(PAM_CFLAGS)				\
 	$(SYSTEMD_LOGIN_CFLAGS)			\
 	$(LIBDRM_CFLAGS)
-weston_launch_LDADD = $(PAM_LIBS) $(SYSTEMD_LOGIN_LIBS) $(LIBDRM_LIBS)
+weston_launch_LDADD = $(PAM_LIBS) $(SYSTEMD_LOGIN_LIBS)
+
+if ENABLE_DRM_COMPOSITOR
+weston_launch_LDADD += $(LIBDRM_LIBS)
+endif
 
 if ENABLE_SETUID_INSTALL
 install-exec-hook:
@@ -316,7 +327,7 @@ gl_renderer_la_LIBADD =				\
 gl_renderer_la_CFLAGS =				\
 	$(COMPOSITOR_CFLAGS)			\
 	$(EGL_CFLAGS)				\
-	$(GL_RENDERER_CFLAGS)			\
+	$(LIBDRM_CFLAGS)			\
 	$(AM_CFLAGS)
 gl_renderer_la_SOURCES =			\
 	libweston/gl-renderer.h			\
