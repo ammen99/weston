@@ -2456,6 +2456,9 @@ weston_wm_create(struct weston_xserver *wxs, int fd)
 					  XCB_COMPOSITE_REDIRECT_MANUAL);
 
 	wm->theme = theme_create();
+    if (opt_disable_frame)
+        wm->theme->width = wm->theme->margin =
+            wm->theme->titlebar_height = wm->theme->frame_radius = 0;
 
 	supported[0] = wm->atom.net_wm_moveresize;
 	supported[1] = wm->atom.net_wm_state;
