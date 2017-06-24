@@ -2928,6 +2928,7 @@ static const EGLint gl_renderer_opaque_attribs[] = {
 	EGL_GREEN_SIZE, 1,
 	EGL_BLUE_SIZE, 1,
 	EGL_ALPHA_SIZE, 0,
+    EGL_DEPTH_SIZE, 1,
 	EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 	EGL_NONE
 };
@@ -2938,6 +2939,7 @@ static const EGLint gl_renderer_alpha_attribs[] = {
 	EGL_GREEN_SIZE, 1,
 	EGL_BLUE_SIZE, 1,
 	EGL_ALPHA_SIZE, 1,
+    EGL_DEPTH_SIZE, 1,
 	EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 	EGL_NONE
 };
@@ -3044,6 +3046,7 @@ gl_renderer_create_pbuffer_surface(struct gl_renderer *gr) {
 		EGL_GREEN_SIZE, 1,
 		EGL_BLUE_SIZE, 1,
 		EGL_ALPHA_SIZE, 0,
+        EGL_DEPTH_SIZE, 1,
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 		EGL_NONE
 	};
