@@ -192,6 +192,18 @@ weston_desktop_xwayland_surface_get_maximized(struct weston_desktop_surface *dsu
 	return surface->maximized;
 }
 
+static void
+weston_desktop_xwayland_surface_set_maximized(struct weston_desktop_surface *dsurface,
+					      void *user_data, bool maximized)
+{
+	struct weston_desktop_xwayland_surface *surface = user_data;
+	struct weston_surface *wsurface =
+		weston_desktop_surface_get_surface(surface->surface);
+
+	surface->client_interface->send_maximized(wsurface, maximized);
+	surface->maximized = maximized;
+}
+
 static bool
 weston_desktop_xwayland_surface_get_fullscreen(struct weston_desktop_surface *dsurface,
 					       void *user_data)
@@ -201,12 +213,26 @@ weston_desktop_xwayland_surface_get_fullscreen(struct weston_desktop_surface *ds
 	return surface->fullscreen;
 }
 
+static void
+weston_desktop_xwayland_surface_set_fullscreen(struct weston_desktop_surface *dsurface,
+		void *user_data, bool fullscreen)
+{
+	struct weston_desktop_xwayland_surface *surface = user_data;
+	struct weston_surface *wsurface =
+		weston_desktop_surface_get_surface(surface->surface);
+
+	surface->client_interface->send_fullscreen(wsurface, fullscreen);
+	surface->fullscreen = fullscreen;
+}
+
 static const struct weston_desktop_surface_implementation weston_desktop_xwayland_surface_internal_implementation = {
 	.committed = weston_desktop_xwayland_surface_committed,
 	.set_size = weston_desktop_xwayland_surface_set_size,
 
 	.get_maximized = weston_desktop_xwayland_surface_get_maximized,
+	.set_maximized = weston_desktop_xwayland_surface_set_maximized,
 	.get_fullscreen = weston_desktop_xwayland_surface_get_fullscreen,
+	.set_fullscreen = weston_desktop_xwayland_surface_set_fullscreen,
 
 	.destroy = weston_desktop_xwayland_surface_destroy,
 };
