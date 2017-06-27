@@ -46,6 +46,7 @@ struct weston_desktop_xwayland_interface {
 			      struct weston_surface *parent, int x, int y);
 	void (*set_fullscreen)(struct weston_desktop_xwayland_surface *shsurf,
 			       struct weston_output *output);
+	void (*unset_fullscreen) (struct weston_desktop_xwayland_surface *shsurf);
 	void (*set_xwayland)(struct weston_desktop_xwayland_surface *shsurf,
 			     int x, int y);
 	int (*move)(struct weston_desktop_xwayland_surface *shsurf,
