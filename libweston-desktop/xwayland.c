@@ -342,6 +342,7 @@ set_xwayland(struct weston_desktop_xwayland_surface *surface, int x, int y)
 						     x, y);
 	weston_view_set_position(surface->view, x, y);
 	surface->maximized = surface->fullscreen = false;
+	weston_view_set_position(surface->view, x, y);
 }
 
 static int
