@@ -2759,6 +2759,7 @@ xserver_map_shell_surface(struct weston_wm_window *window,
 	if (window->fullscreen) {
 		window->saved_width = window->width;
 		window->saved_height = window->height;
+		xwayland_interface->set_toplevel(window->shsurf);
 		xwayland_interface->set_fullscreen(window->shsurf,
 						   window->legacy_fullscreen_output.output);
 		return;
@@ -2778,6 +2779,7 @@ xserver_map_shell_surface(struct weston_wm_window *window,
 						       parent->surface);
 		}
 	} else if (weston_wm_window_is_maximized(window)) {
+		xwayland_interface->set_toplevel(window->shsurf);
 		xwayland_interface->set_maximized(window->shsurf);
 	} else {
 		if (weston_wm_window_type_inactive(window)) {
