@@ -1617,13 +1617,15 @@ weston_wm_window_handle_state(struct weston_wm_window *window,
 	struct weston_wm *wm = window->wm;
 	const struct weston_desktop_xwayland_interface *xwayland_interface =
 		wm->server->compositor->xwayland_interface;
-	uint32_t action, property;
+	uint32_t action, property1, property2;
 	int maximized = weston_wm_window_is_maximized(window);
 
 	action = client_message->data.data32[0];
-	property = client_message->data.data32[1];
+	property1 = client_message->data.data32[1];
+	property2 = client_message->data.data32[2];
 
-	if (property == wm->atom.net_wm_state_fullscreen &&
+	if ((property1 == wm->atom.net_wm_state_fullscreen ||
+	     property2 == wm->atom.net_wm_state_fullscreen) &&
 	    update_state(action, &window->fullscreen)) {
 		weston_wm_window_set_net_wm_state(window);
 		if (window->fullscreen) {
@@ -1638,10 +1640,12 @@ weston_wm_window_handle_state(struct weston_wm_window *window,
 				weston_wm_window_set_toplevel(window);
 		}
 	} else {
-		if (property == wm->atom.net_wm_state_maximized_vert &&
+		if ((property1 == wm->atom.net_wm_state_maximized_vert ||
+		     property2 == wm->atom.net_wm_state_maximized_vert) &&
 		    update_state(action, &window->maximized_vert))
 			weston_wm_window_set_net_wm_state(window);
-		if (property == wm->atom.net_wm_state_maximized_horz &&
+		if ((property1 == wm->atom.net_wm_state_maximized_horz ||
+		     property2 == wm->atom.net_wm_state_maximized_horz) &&
 		    update_state(action, &window->maximized_horz))
 			weston_wm_window_set_net_wm_state(window);
 
@@ -2620,8 +2624,32 @@ send_position(struct weston_surface *surface, int32_t x, int32_t y)
 	}
 }
 
+static void send_maximized(struct weston_surface *surface, bool maximized)
+{
+	struct weston_wm_window *window = get_wm_window(surface);
+
+	if (window->maximized_horz == maximized &&
+	    window->maximized_vert == maximized)
+		return;
+
+	window->maximized_horz = window->maximized_vert = maximized;
+	weston_wm_window_set_net_wm_state(window);
+}
+
+static void send_fullscreen(struct weston_surface *surface, bool fullscreen)
+{
+	struct weston_wm_window *window = get_wm_window(surface);
+	if (window->fullscreen == fullscreen)
+		return;
+
+	window->fullscreen = fullscreen;
+	weston_wm_window_set_net_wm_state(window);
+}
+
 static const struct weston_xwayland_client_interface shell_client = {
 	send_configure,
+	send_maximized,
+	send_fullscreen
 };
 
 static int
@@ -2753,6 +2781,7 @@ xserver_map_shell_surface(struct weston_wm_window *window,
 	if (window->fullscreen) {
 		window->saved_width = window->width;
 		window->saved_height = window->height;
+		xwayland_interface->set_toplevel(window->shsurf);
 		xwayland_interface->set_fullscreen(window->shsurf,
 						   window->legacy_fullscreen_output.output);
 		return;
@@ -2772,6 +2801,7 @@ xserver_map_shell_surface(struct weston_wm_window *window,
 						       parent->surface);
 		}
 	} else if (weston_wm_window_is_maximized(window)) {
+		xwayland_interface->set_toplevel(window->shsurf);
 		xwayland_interface->set_maximized(window->shsurf);
 	} else {
 		if (weston_wm_window_type_inactive(window)) {

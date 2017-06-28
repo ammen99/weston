@@ -40,8 +40,6 @@
 enum weston_desktop_xwayland_surface_state {
 	NONE,
 	TOPLEVEL,
-	MAXIMIZED,
-	FULLSCREEN,
 	TRANSIENT,
 	XWAYLAND,
 };
@@ -62,6 +60,8 @@ struct weston_desktop_xwayland_surface {
 	struct weston_geometry next_geometry;
 	bool has_next_geometry;
 	bool added;
+	bool maximized;
+	bool fullscreen;
 	enum weston_desktop_xwayland_surface_state state;
 };
 
@@ -189,7 +189,19 @@ weston_desktop_xwayland_surface_get_maximized(struct weston_desktop_surface *dsu
 {
 	struct weston_desktop_xwayland_surface *surface = user_data;
 
-	return surface->state == MAXIMIZED;
+	return surface->maximized;
+}
+
+static void
+weston_desktop_xwayland_surface_set_maximized(struct weston_desktop_surface *dsurface,
+					      void *user_data, bool maximized)
+{
+	struct weston_desktop_xwayland_surface *surface = user_data;
+	struct weston_surface *wsurface =
+		weston_desktop_surface_get_surface(surface->surface);
+
+	surface->client_interface->send_maximized(wsurface, maximized);
+	surface->maximized = maximized;
 }
 
 static bool
@@ -198,7 +210,19 @@ weston_desktop_xwayland_surface_get_fullscreen(struct weston_desktop_surface *ds
 {
 	struct weston_desktop_xwayland_surface *surface = user_data;
 
-	return surface->state == FULLSCREEN;
+	return surface->fullscreen;
+}
+
+static void
+weston_desktop_xwayland_surface_set_fullscreen(struct weston_desktop_surface *dsurface,
+		void *user_data, bool fullscreen)
+{
+	struct weston_desktop_xwayland_surface *surface = user_data;
+	struct weston_surface *wsurface =
+		weston_desktop_surface_get_surface(surface->surface);
+
+	surface->client_interface->send_fullscreen(wsurface, fullscreen);
+	surface->fullscreen = fullscreen;
 }
 
 static const struct weston_desktop_surface_implementation weston_desktop_xwayland_surface_internal_implementation = {
@@ -206,7 +230,9 @@ static const struct weston_desktop_surface_implementation weston_desktop_xwaylan
 	.set_size = weston_desktop_xwayland_surface_set_size,
 
 	.get_maximized = weston_desktop_xwayland_surface_get_maximized,
+	.set_maximized = weston_desktop_xwayland_surface_set_maximized,
 	.get_fullscreen = weston_desktop_xwayland_surface_get_fullscreen,
+	.set_fullscreen = weston_desktop_xwayland_surface_set_fullscreen,
 
 	.destroy = weston_desktop_xwayland_surface_destroy,
 };
@@ -304,8 +330,7 @@ static void
 set_fullscreen(struct weston_desktop_xwayland_surface *surface,
 	       struct weston_output *output)
 {
-	weston_desktop_xwayland_surface_change_state(surface, FULLSCREEN, NULL,
-						     0, 0);
+	surface->fullscreen = true;
 	weston_desktop_api_fullscreen_requested(surface->desktop,
 						surface->surface, true, output);
 }
@@ -316,15 +341,14 @@ set_xwayland(struct weston_desktop_xwayland_surface *surface, int x, int y)
 	weston_desktop_xwayland_surface_change_state(surface, XWAYLAND, NULL,
 						     x, y);
 	weston_view_set_position(surface->view, x, y);
+	surface->maximized = surface->fullscreen = false;
 }
 
 static int
 move(struct weston_desktop_xwayland_surface *surface,
      struct weston_pointer *pointer)
 {
-	if (surface->state == TOPLEVEL ||
-	    surface->state == MAXIMIZED ||
-	    surface->state == FULLSCREEN)
+	if (surface->state == TOPLEVEL)
 		weston_desktop_api_move(surface->desktop, surface->surface,
 					pointer->seat, pointer->grab_serial);
 	return 0;
@@ -334,9 +358,7 @@ static int
 resize(struct weston_desktop_xwayland_surface *surface,
        struct weston_pointer *pointer, uint32_t edges)
 {
-	if (surface->state == TOPLEVEL ||
-	    surface->state == MAXIMIZED ||
-	    surface->state == FULLSCREEN)
+	if (surface->state == TOPLEVEL)
 		weston_desktop_api_resize(surface->desktop, surface->surface,
 					  pointer->seat, pointer->grab_serial,
 					  edges);
@@ -363,8 +385,7 @@ set_window_geometry(struct weston_desktop_xwayland_surface *surface,
 static void
 set_maximized(struct weston_desktop_xwayland_surface *surface)
 {
-	weston_desktop_xwayland_surface_change_state(surface, MAXIMIZED, NULL,
-						     0, 0);
+	surface->maximized = true;
 	weston_desktop_api_maximized_requested(surface->desktop,
 					       surface->surface, true);
 }
