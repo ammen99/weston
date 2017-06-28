@@ -48,6 +48,8 @@
 #include "hash.h"
 #include "shared/helpers.h"
 
+bool opt_disable_frame = true;
+
 struct wm_size_hints {
 	uint32_t flags;
 	int32_t x, y;
@@ -496,7 +498,11 @@ weston_wm_window_read_properties(struct weston_wm_window *window)
 					     props[i].atom,
 					     XCB_ATOM_ANY, 0, 2048);
 
-	window->decorate = window->override_redirect ? 0 : MWM_DECOR_EVERYTHING;
+    if (opt_disable_frame)
+        window->decorate = false;
+    else
+	    window->decorate = window->override_redirect ? 0 : MWM_DECOR_EVERYTHING;
+
 	window->size_hints.flags = 0;
 	window->motif_hints.flags = 0;
 	window->delete_window = 0;
@@ -563,6 +569,9 @@ weston_wm_window_read_properties(struct weston_wm_window *window)
 			}
 			break;
 		case TYPE_MOTIF_WM_HINTS:
+            if (opt_disable_frame)
+                break;
+
 			memcpy(&window->motif_hints,
 			       xcb_get_property_value(reply),
 			       sizeof window->motif_hints);
@@ -715,11 +724,13 @@ weston_wm_handle_configure_request(struct weston_wm *wm, xcb_generic_event_t *ev
 
 	xcb_configure_window(wm->conn, window->id, mask, values);
 
-	weston_wm_window_get_frame_size(window, &width, &height);
-	values[0] = width;
-	values[1] = height;
-	mask = XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
-	xcb_configure_window(wm->conn, window->frame_id, mask, values);
+    if (!opt_disable_frame) {
+        weston_wm_window_get_frame_size(window, &width, &height);
+        values[0] = width;
+        values[1] = height;
+        mask = XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
+        xcb_configure_window(wm->conn, window->frame_id, mask, values);
+    }
 
 	weston_wm_window_schedule_repaint(window);
 }
@@ -1077,9 +1088,14 @@ weston_wm_handle_map_request(struct weston_wm *wm, xcb_generic_event_t *event)
 	window->map_request_x = window->x;
 	window->map_request_y = window->y;
 
-	if (window->frame_id == XCB_WINDOW_NONE)
-		weston_wm_window_create_frame(window); /* sets frame_id */
-	assert(window->frame_id != XCB_WINDOW_NONE);
+    if (opt_disable_frame) {
+        window->frame_id = window->id;
+        window->frame = NULL;
+    } else {
+        if (window->frame_id == XCB_WINDOW_NONE)
+            weston_wm_window_create_frame(window); /* sets frame_id */
+        assert(window->frame_id != XCB_WINDOW_NONE);
+    }
 
 	wm_log("XCB_MAP_REQUEST (window %d, %p, frame %d, %dx%d @ %d,%d)\n",
 	       window->id, window, window->frame_id,
@@ -1098,7 +1114,8 @@ weston_wm_handle_map_request(struct weston_wm *wm, xcb_generic_event_t *event)
 	}
 
 	xcb_map_window(wm->conn, map_request->window);
-	xcb_map_window(wm->conn, window->frame_id);
+    if (!opt_disable_frame)
+	    xcb_map_window(wm->conn, window->frame_id);
 
 	/* Mapped in the X server, we can draw immediately.
 	 * Cannot set pending state though, no weston_surface until
@@ -1162,7 +1179,8 @@ weston_wm_handle_unmap_notify(struct weston_wm *wm, xcb_generic_event_t *event)
 	weston_wm_window_set_wm_state(window, ICCCM_WITHDRAWN_STATE);
 	weston_wm_window_set_virtual_desktop(window, -1);
 
-	xcb_unmap_window(wm->conn, window->frame_id);
+    if (!opt_disable_frame)
+	    xcb_unmap_window(wm->conn, window->frame_id);
 }
 
 static void
@@ -1259,7 +1277,9 @@ weston_wm_window_do_repaint(void *data)
 
 	weston_wm_window_read_properties(window);
 
-	weston_wm_window_draw_decoration(window);
+    if (!opt_disable_frame)
+	    weston_wm_window_draw_decoration(window);
+
 	weston_wm_window_set_pending_state(window);
 }
 
@@ -1390,14 +1410,16 @@ weston_wm_window_destroy(struct weston_wm_window *window)
 	if (window->cairo_surface)
 		cairo_surface_destroy(window->cairo_surface);
 
-	if (window->frame_id) {
+	if (window->frame_id && !opt_disable_frame) {
 		xcb_reparent_window(wm->conn, window->id, wm->wm_window, 0, 0);
 		xcb_destroy_window(wm->conn, window->frame_id);
 		weston_wm_window_set_wm_state(window, ICCCM_WITHDRAWN_STATE);
 		weston_wm_window_set_virtual_desktop(window, -1);
 		hash_table_remove(wm->window_hash, window->frame_id);
 		window->frame_id = XCB_WINDOW_NONE;
-	}
+	} else if (window->frame_id) {
+        window->frame_id = XCB_WINDOW_NONE;
+    }
 
 	if (window->surface_id)
 		wl_list_remove(&window->link);
@@ -2445,6 +2467,9 @@ weston_wm_create(struct weston_xserver *wxs, int fd)
 					  XCB_COMPOSITE_REDIRECT_MANUAL);
 
 	wm->theme = theme_create();
+    if (opt_disable_frame)
+        wm->theme->width = wm->theme->margin =
+            wm->theme->titlebar_height = wm->theme->frame_radius = 0;
 
 	supported[0] = wm->atom.net_wm_moveresize;
 	supported[1] = wm->atom.net_wm_state;
@@ -2547,14 +2572,16 @@ weston_wm_window_configure(void *data)
 			     XCB_CONFIG_WINDOW_HEIGHT,
 			     values);
 
-	weston_wm_window_get_frame_size(window, &width, &height);
-	values[0] = width;
-	values[1] = height;
-	xcb_configure_window(wm->conn,
-			     window->frame_id,
-			     XCB_CONFIG_WINDOW_WIDTH |
-			     XCB_CONFIG_WINDOW_HEIGHT,
-			     values);
+    if (!opt_disable_frame) {
+        weston_wm_window_get_frame_size(window, &width, &height);
+        values[0] = width;
+        values[1] = height;
+        xcb_configure_window(wm->conn,
+                window->frame_id,
+                XCB_CONFIG_WINDOW_WIDTH |
+                XCB_CONFIG_WINDOW_HEIGHT,
+                values);
+    }
 
 	window->configure_source = NULL;
 
