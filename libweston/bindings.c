@@ -283,7 +283,7 @@ install_binding_grab(struct weston_keyboard *keyboard,
 	}
 }
 
-void
+WL_EXPORT void
 weston_compositor_run_key_binding(struct weston_compositor *compositor,
 				  struct weston_keyboard *keyboard,
 				  const struct timespec *time, uint32_t key,
@@ -319,7 +319,7 @@ weston_compositor_run_key_binding(struct weston_compositor *compositor,
 	}
 }
 
-void
+WL_EXPORT void
 weston_compositor_run_modifier_binding(struct weston_compositor *compositor,
 				       struct weston_keyboard *keyboard,
 				       enum weston_keyboard_modifier modifier,
@@ -350,7 +350,7 @@ weston_compositor_run_modifier_binding(struct weston_compositor *compositor,
 	}
 }
 
-void
+WL_EXPORT void
 weston_compositor_run_button_binding(struct weston_compositor *compositor,
 				     struct weston_pointer *pointer,
 				     const struct timespec *time,
@@ -375,7 +375,7 @@ weston_compositor_run_button_binding(struct weston_compositor *compositor,
 	}
 }
 
-void
+WL_EXPORT void
 weston_compositor_run_touch_binding(struct weston_compositor *compositor,
 				    struct weston_touch *touch,
 				    const struct timespec *time,
@@ -394,7 +394,7 @@ weston_compositor_run_touch_binding(struct weston_compositor *compositor,
 	}
 }
 
-int
+WL_EXPORT int
 weston_compositor_run_axis_binding(struct weston_compositor *compositor,
 				   struct weston_pointer *pointer,
 				   const struct timespec *time,
@@ -418,7 +418,7 @@ weston_compositor_run_axis_binding(struct weston_compositor *compositor,
 	return 0;
 }
 
-int
+WL_EXPORT int
 weston_compositor_run_debug_binding(struct weston_compositor *compositor,
 				    struct weston_keyboard *keyboard,
 				    const struct timespec *time, uint32_t key,
