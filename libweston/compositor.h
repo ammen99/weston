@@ -754,6 +754,12 @@ struct weston_renderer {
 	bool (*query_dmabuf_modifiers)(struct weston_compositor *ec,
 				int format, uint64_t **modifiers,
 				int *num_modifiers);
+
+    void* (*get_egl_surface) (struct weston_output *output);
+    void* (*get_egl_context) (struct weston_output *output);
+    void* (*get_egl_display) (struct weston_output *output);
+
+    void* (*get_gl_surface_contents) (struct weston_surface *surface);
 };
 
 enum weston_capability {

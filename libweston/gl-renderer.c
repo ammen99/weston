@@ -3415,6 +3415,38 @@ gl_renderer_create_pbuffer_surface(struct gl_renderer *gr) {
 	return 0;
 }
 
+void*
+gl_renderer_get_egl_display(struct weston_output *output)
+{
+	struct gl_renderer *gr = get_renderer(output->compositor);
+
+    return (void*)gr->egl_display;
+}
+
+void*
+gl_renderer_get_egl_context(struct weston_output *output)
+{
+	struct gl_renderer *gr = get_renderer(output->compositor);
+
+    return (void*)gr->egl_context;
+}
+
+void*
+gl_renderer_get_egl_surface(struct weston_output *output)
+{
+	struct gl_output_state *go = get_output_state(output);
+
+    return (void*)go->egl_surface;
+}
+
+void*
+gl_renderer_get_gl_surface_contents(struct weston_surface *surface)
+{
+    struct gl_surface_state *gs = get_surface_state(surface);
+
+    return (void*)gs->textures;
+}
+
 static int
 gl_renderer_display_create(struct weston_compositor *ec, EGLenum platform,
 	void *native_window, const EGLint *platform_attribs,
@@ -3444,6 +3476,13 @@ gl_renderer_display_create(struct weston_compositor *ec, EGLenum platform,
 	gr->base.surface_get_content_size =
 		gl_renderer_surface_get_content_size;
 	gr->base.surface_copy_content = gl_renderer_surface_copy_content;
+
+    gr->base.get_egl_display = gl_renderer_get_egl_display;
+    gr->base.get_egl_context = gl_renderer_get_egl_context;
+    gr->base.get_egl_surface = gl_renderer_get_egl_surface;
+
+    gr->base.get_gl_surface_contents = gl_renderer_get_gl_surface_contents;
+
 	gr->egl_display = NULL;
 
 	/* extension_suffix is supported */
@@ -3715,6 +3754,7 @@ gl_renderer_setup(struct weston_compositor *ec, EGLSurface egl_surface)
 
 	return 0;
 }
+
 
 WL_EXPORT struct gl_renderer_interface gl_renderer_interface = {
 	.opaque_attribs = gl_renderer_opaque_attribs,
