@@ -675,7 +675,7 @@ use_output(struct weston_output *output)
 	struct gl_renderer *gr = get_renderer(output->compositor);
 	EGLBoolean ret;
 
-	ret = eglMakeCurrent(gr->egl_display, go->egl_surface,
+    ret = eglMakeCurrent(gr->egl_display, go->egl_surface,
 			     go->egl_surface, gr->egl_context);
 
 	if (ret == EGL_FALSE) {
@@ -2748,6 +2748,7 @@ gl_renderer_output_window_create(struct weston_output *output,
 		weston_log("failed to create egl surface\n");
 		return -1;
 	}
+    weston_log("egl inited with %p %p %p\n", gr->egl_display, egl_surface, gr->egl_context);
 
 	ret = gl_renderer_output_create(output, egl_surface);
 	if (ret < 0)
