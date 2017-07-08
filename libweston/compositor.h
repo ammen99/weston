@@ -747,6 +747,12 @@ struct weston_renderer {
 	/** See weston_compositor_import_dmabuf() */
 	bool (*import_dmabuf)(struct weston_compositor *ec,
 			      struct linux_dmabuf_buffer *buffer);
+
+    void* (*get_egl_surface) (struct weston_output *output);
+    void* (*get_egl_context) (struct weston_output *output);
+    void* (*get_egl_display) (struct weston_output *output);
+
+    void* (*get_gl_surface_contents) (struct weston_surface *surface);
 };
 
 enum weston_capability {
