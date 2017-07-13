@@ -60,6 +60,8 @@
 #include "shared/timespec-util.h"
 #include "weston-egl-ext.h"
 
+#include "gl-renderer-api.h"
+
 struct gl_shader {
 	GLuint program;
 	GLuint vertex_shader, fragment_shader;
@@ -410,6 +412,40 @@ timeline_submit_render_sync(struct gl_renderer *gr,
 out:
 	gr->destroy_sync(gr->egl_display, sync);
 }
+
+static inline void *
+gl_compositor_get_egl_display(struct weston_compositor *ec)
+{
+	return get_renderer(ec)->egl_display;
+}
+
+static inline void *
+gl_compositor_get_egl_context(struct weston_compositor *ec)
+{
+	return get_renderer(ec)->egl_context;
+}
+
+static inline void *
+gl_output_get_egl_surface(struct weston_output *output)
+{
+	return get_output_state(output)->egl_surface;
+}
+
+static inline void *
+gl_surface_get_textures(struct weston_surface *surface, int *n_tex)
+{
+	struct gl_surface_state *gs = get_surface_state(surface);
+
+	*n_tex = gs->num_textures;
+	return gs->textures;
+}
+
+static const struct weston_gl_renderer_api gl_renderer_api = {
+	gl_compositor_get_egl_display,
+	gl_compositor_get_egl_context,
+	gl_output_get_egl_surface,
+	gl_surface_get_textures
+};
 
 static struct egl_image*
 egl_image_create(struct gl_renderer *gr, EGLenum target,
@@ -3649,6 +3685,10 @@ gl_renderer_setup(struct weston_compositor *ec, EGLSurface egl_surface)
 	glActiveTexture(GL_TEXTURE0);
 
 	if (compile_shaders(ec))
+		return -1;
+
+	if (weston_plugin_api_register(ec, WESTON_GL_RENDERER_API_NAME,
+				       &gl_renderer_api, sizeof(gl_renderer_api)) < 0)
 		return -1;
 
 	gr->fragment_binding =
