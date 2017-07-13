@@ -59,6 +59,7 @@
 #include "shared/platform.h"
 #include "shared/timespec-util.h"
 #include "weston-egl-ext.h"
+#include "gl-renderer-api.h"
 
 #define GR_GL_VERSION(major, minor) \
 	(((uint32_t)(major) << 16) | (uint32_t)(minor))
@@ -260,6 +261,9 @@ struct gl_renderer {
 	PFNEGLCREATESYNCKHRPROC create_sync;
 	PFNEGLDESTROYSYNCKHRPROC destroy_sync;
 	PFNEGLDUPNATIVEFENCEFDANDROIDPROC dup_native_fence_fd;
+
+	custom_renderer_func_t custom_renderer;
+	post_render_func_t post_render;
 };
 
 enum timeline_render_point_type {
@@ -420,6 +424,56 @@ timeline_submit_render_sync(struct gl_renderer *gr,
 out:
 	gr->destroy_sync(gr->egl_display, sync);
 }
+
+static inline void
+gl_set_custom_renderer(struct weston_compositor *ec, custom_renderer_func_t renderer)
+{
+	struct gl_renderer *gr = get_renderer(ec);
+	gr->custom_renderer = renderer;
+}
+
+static inline void
+gl_set_post_render(struct weston_compositor *ec, post_render_func_t post_render)
+{
+	struct gl_renderer *gr = get_renderer(ec);
+	gr->post_render = post_render;
+}
+
+static inline void
+gl_schedule_repaint(struct weston_output *output)
+{
+	pixman_region32_t current_damage;
+
+	pixman_region32_init(&current_damage);
+	pixman_region32_intersect(&current_damage,
+				  &output->compositor->primary_plane.damage,
+				  &output->region);
+
+	if (!pixman_region32_not_empty(&current_damage))
+	{
+		pixman_region32_union_rect(&output->compositor->primary_plane.damage,
+					   &output->compositor->primary_plane.damage,
+					   output->x, output->y, 1, 1);
+	}
+
+	weston_output_schedule_repaint(output);
+}
+
+static inline void *
+gl_surface_get_textures(struct weston_surface *surface, int *n_tex)
+{
+	struct gl_surface_state *gs = get_surface_state(surface);
+
+	*n_tex = gs->num_textures;
+	return gs->textures;
+}
+
+static const struct weston_gl_renderer_api gl_renderer_api = {
+	gl_set_custom_renderer,
+	gl_set_post_render,
+	gl_schedule_repaint,
+	gl_surface_get_textures
+};
 
 static struct egl_image*
 egl_image_create(struct gl_renderer *gr, EGLenum target,
@@ -926,6 +980,7 @@ draw_view(struct weston_view *ev, struct weston_output *output,
 		shader_uniforms(&gr->solid_shader, ev, output);
 	}
 
+    gr->current_shader = NULL;
 	use_shader(gr, gs->shader);
 	shader_uniforms(gs->shader, ev, output);
 
@@ -967,6 +1022,7 @@ draw_view(struct weston_view *ev, struct weston_output *output,
 			 * that forces texture alpha = 1.0.
 			 * Xwayland surfaces need this.
 			 */
+            gr->current_shader = NULL;
 			use_shader(gr, &gr->texture_shader_rgbx);
 			shader_uniforms(&gr->texture_shader_rgbx, ev, output);
 		}
@@ -980,6 +1036,7 @@ draw_view(struct weston_view *ev, struct weston_output *output,
 	}
 
 	if (pixman_region32_not_empty(&surface_blend)) {
+        gr->current_shader = NULL;
 		use_shader(gr, gs->shader);
 		glEnable(GL_BLEND);
 		repaint_region(ev, &repaint, &surface_blend);
@@ -1105,6 +1162,7 @@ draw_output_borders(struct weston_output *output,
 	full_height = output->current_mode->height + top->height + bottom->height;
 
 	glDisable(GL_BLEND);
+    gr->current_shader = NULL;
 	use_shader(gr, shader);
 
 	glViewport(0, 0, full_width, full_height);
@@ -1298,7 +1356,14 @@ gl_renderer_repaint_output(struct weston_output *output,
 	pixman_region32_union(&total_damage, &buffer_damage, output_damage);
 	border_damage |= go->border_status;
 
-	repaint_views(output, &total_damage);
+	bool swap_buffers_with_damage = gr->swap_buffers_with_damage;
+	if (!gr->custom_renderer || !gr->custom_renderer(output, output_damage))
+		repaint_views(output, &total_damage);
+	else
+		swap_buffers_with_damage = false;
+
+	if (gr->post_render)
+		gr->post_render(output);
 
 	pixman_region32_fini(&total_damage);
 	pixman_region32_fini(&buffer_damage);
@@ -1310,7 +1375,7 @@ gl_renderer_repaint_output(struct weston_output *output,
 
 	end_render_sync = timeline_create_render_sync(gr);
 
-	if (gr->swap_buffers_with_damage) {
+	if (swap_buffers_with_damage) {
 		pixman_region32_init(&buffer_damage);
 		weston_transformed_region(output->width, output->height,
 					  output->transform,
@@ -2471,6 +2536,8 @@ gl_renderer_surface_copy_content(struct weston_surface *surface,
 
 	glViewport(0, 0, cw, ch);
 	glDisable(GL_BLEND);
+
+    gr->current_shader = NULL;
 	use_shader(gr, gs->shader);
 	if (gs->y_inverted)
 		proj = projmat_normal;
@@ -3267,6 +3334,7 @@ static const EGLint gl_renderer_opaque_attribs[] = {
 	EGL_GREEN_SIZE, 1,
 	EGL_BLUE_SIZE, 1,
 	EGL_ALPHA_SIZE, 0,
+    EGL_DEPTH_SIZE, 1,
 	EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 	EGL_NONE
 };
@@ -3277,6 +3345,7 @@ static const EGLint gl_renderer_alpha_attribs[] = {
 	EGL_GREEN_SIZE, 1,
 	EGL_BLUE_SIZE, 1,
 	EGL_ALPHA_SIZE, 1,
+    EGL_DEPTH_SIZE, 1,
 	EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 	EGL_NONE
 };
@@ -3383,6 +3452,7 @@ gl_renderer_create_pbuffer_surface(struct gl_renderer *gr) {
 		EGL_GREEN_SIZE, 1,
 		EGL_BLUE_SIZE, 1,
 		EGL_ALPHA_SIZE, 0,
+        EGL_DEPTH_SIZE, 1,
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 		EGL_NONE
 	};
@@ -3439,6 +3509,7 @@ gl_renderer_display_create(struct weston_compositor *ec, EGLenum platform,
 	gr->base.surface_get_content_size =
 		gl_renderer_surface_get_content_size;
 	gr->base.surface_copy_content = gl_renderer_surface_copy_content;
+
 	gr->egl_display = NULL;
 
 	/* extension_suffix is supported */
@@ -3749,6 +3820,12 @@ gl_renderer_setup(struct weston_compositor *ec, EGLSurface egl_surface)
 	if (compile_shaders(ec))
 		return -1;
 
+	gr->custom_renderer = NULL;
+	gr->post_render = NULL;
+	if (weston_plugin_api_register(ec, WESTON_GL_RENDERER_API_NAME,
+				       &gl_renderer_api, sizeof(gl_renderer_api)) < 0)
+		return -1;
+
 	gr->fragment_binding =
 		weston_compositor_add_debug_binding(ec, KEY_S,
 						    fragment_debug_binding,
@@ -3773,6 +3850,7 @@ gl_renderer_setup(struct weston_compositor *ec, EGLSurface egl_surface)
 
 	return 0;
 }
+
 
 WL_EXPORT struct gl_renderer_interface gl_renderer_interface = {
 	.opaque_attribs = gl_renderer_opaque_attribs,
