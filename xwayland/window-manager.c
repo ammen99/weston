@@ -2626,7 +2626,8 @@ send_position(struct weston_surface *surface, int32_t x, int32_t y)
 	}
 }
 
-static void send_maximized(struct weston_surface *surface, bool maximized)
+static void
+send_maximized(struct weston_surface *surface, bool maximized)
 {
 	struct weston_wm_window *window = get_wm_window(surface);
 
@@ -2638,7 +2639,8 @@ static void send_maximized(struct weston_surface *surface, bool maximized)
 	weston_wm_window_set_net_wm_state(window);
 }
 
-static void send_fullscreen(struct weston_surface *surface, bool fullscreen)
+static void
+send_fullscreen(struct weston_surface *surface, bool fullscreen)
 {
 	struct weston_wm_window *window = get_wm_window(surface);
 	if (window->fullscreen == fullscreen)
@@ -2648,10 +2650,18 @@ static void send_fullscreen(struct weston_surface *surface, bool fullscreen)
 	weston_wm_window_set_net_wm_state(window);
 }
 
+static void
+send_close(struct weston_surface *surface)
+{
+    struct weston_wm_window *window = get_wm_window(surface);
+    weston_wm_window_close(window, XCB_CURRENT_TIME);
+}
+
 static const struct weston_xwayland_client_interface shell_client = {
 	send_configure,
 	send_maximized,
-	send_fullscreen
+	send_fullscreen,
+    send_close
 };
 
 static int

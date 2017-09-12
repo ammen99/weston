@@ -225,6 +225,17 @@ weston_desktop_xwayland_surface_set_fullscreen(struct weston_desktop_surface *ds
 	surface->fullscreen = fullscreen;
 }
 
+static void
+weston_desktop_xwayland_surface_close(struct weston_desktop_surface *dsurface,
+                                      void *user_data)
+{
+    struct weston_desktop_xwayland_surface *surface = user_data;
+    struct weston_surface *wsurface =
+        weston_desktop_surface_get_surface(surface->surface);
+
+    surface->client_interface->send_close(wsurface);
+}
+
 static const struct weston_desktop_surface_implementation weston_desktop_xwayland_surface_internal_implementation = {
 	.committed = weston_desktop_xwayland_surface_committed,
 	.set_size = weston_desktop_xwayland_surface_set_size,
@@ -234,6 +245,7 @@ static const struct weston_desktop_surface_implementation weston_desktop_xwaylan
 	.get_fullscreen = weston_desktop_xwayland_surface_get_fullscreen,
 	.set_fullscreen = weston_desktop_xwayland_surface_set_fullscreen,
 
+    .close = weston_desktop_xwayland_surface_close,
 	.destroy = weston_desktop_xwayland_surface_destroy,
 };
 

@@ -33,6 +33,7 @@ struct weston_xwayland_client_interface {
 	void (*send_configure)(struct weston_surface *surface, int32_t width, int32_t height);
 	void (*send_maximized)(struct weston_surface *surface, bool maximized);
 	void (*send_fullscreen)(struct weston_surface *surface, bool fullscreen);
+    void (*send_close)(struct weston_surface *surface);
 };
 
 struct weston_desktop_xwayland_interface {
