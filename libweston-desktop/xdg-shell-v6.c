@@ -646,7 +646,7 @@ weston_desktop_xdg_toplevel_committed(struct weston_desktop_xdg_toplevel *toplev
 	struct weston_geometry geometry =
 		weston_desktop_surface_get_geometry(toplevel->base.desktop_surface);
 
-	if ((toplevel->next.state.maximized || toplevel->next.state.fullscreen) &&
+	if (false && (toplevel->next.state.maximized || toplevel->next.state.fullscreen) &&
 	    (toplevel->next.size.width != geometry.width ||
 	     toplevel->next.size.height != geometry.height)) {
 		struct weston_desktop_client *client =
