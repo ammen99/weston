@@ -282,6 +282,7 @@ weston_view_create(struct weston_surface *surface)
 	wl_list_init(&view->layer_link.link);
 
 	pixman_region32_init(&view->clip);
+    pixman_region32_init(&view->damage_clip_region);
 
 	view->alpha = 1.0;
 	pixman_region32_init(&view->transform.opaque);
@@ -2052,7 +2053,7 @@ static void
 view_accumulate_damage(struct weston_view *view,
 		       pixman_region32_t *opaque)
 {
-	pixman_region32_t damage;
+	pixman_region32_t damage, acc_damage;
 
 	pixman_region32_init(&damage);
 	if (view->transform.enabled) {
@@ -2071,9 +2072,13 @@ view_accumulate_damage(struct weston_view *view,
 	pixman_region32_subtract(&damage, &damage, opaque);
 	pixman_region32_union(&view->plane->damage,
 			      &view->plane->damage, &damage);
-	pixman_region32_fini(&damage);
 	pixman_region32_copy(&view->clip, opaque);
-	pixman_region32_union(opaque, opaque, &view->transform.opaque);
+
+    pixman_region32_init(&acc_damage);
+    pixman_region32_copy(&acc_damage, &view->transform.opaque);
+    pixman_region32_intersect(&acc_damage, &acc_damage, &view->damage_clip_region);
+	pixman_region32_union(opaque, opaque, &acc_damage);
+    pixman_region32_fini(&acc_damage);
 }
 
 static void

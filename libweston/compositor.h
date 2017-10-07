@@ -1109,6 +1109,7 @@ struct weston_view {
 	 * displayed on.
 	 */
 	uint32_t output_mask;
+    pixman_region32_t damage_clip_region;
 
 	/* Per-surface Presentation feedback flags, controlled by backend. */
 	uint32_t psf_flags;
