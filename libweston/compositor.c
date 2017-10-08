@@ -2076,7 +2076,10 @@ view_accumulate_damage(struct weston_view *view,
 
     pixman_region32_init(&acc_damage);
     pixman_region32_copy(&acc_damage, &view->transform.opaque);
-    pixman_region32_intersect(&acc_damage, &acc_damage, &view->damage_clip_region);
+
+    if (pixman_region32_not_empty(&view->damage_clip_region))
+        pixman_region32_intersect(&acc_damage, &acc_damage, &view->damage_clip_region);
+
 	pixman_region32_union(opaque, opaque, &acc_damage);
     pixman_region32_fini(&acc_damage);
 }
