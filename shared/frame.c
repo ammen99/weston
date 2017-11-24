@@ -503,7 +503,7 @@ frame_resize_inside(struct frame *frame, int32_t width, int32_t height)
 	else
 		titlebar_height = t->width;
 
-	if (frame->flags & FRAME_FLAG_MAXIMIZED) {
+	if (frame->flags & FRAME_FLAG_MAXIMIZED || !t->use_shadow) {
 		decoration_width = t->width * 2;
 		decoration_height = t->width + titlebar_height;
 	} else {
@@ -559,13 +559,13 @@ frame_refresh_geometry(struct frame *frame)
 		decoration_width = (t->width + t->margin) * 2;
 		decoration_height = t->width + titlebar_height + t->margin * 2;
 
-		frame->interior.x = t->width + t->margin;
-		frame->interior.y = titlebar_height + t->margin;
+		frame->interior.x = t->width + (t->use_shadow ? t->margin : 0);
+		frame->interior.y = titlebar_height + (t->use_shadow ? t->margin : 0);
 		frame->interior.width = frame->width - decoration_width;
 		frame->interior.height = frame->height - decoration_height;
 
 		frame->opaque_margin = t->margin + t->frame_radius;
-		frame->shadow_margin = t->margin;
+		frame->shadow_margin = t->use_shadow ? t->margin : 0;
 	}
 
 	x_r = frame->width - t->width - frame->shadow_margin;

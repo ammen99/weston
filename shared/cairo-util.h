@@ -57,6 +57,7 @@ struct theme {
 	int margin;
 	int width;
 	int titlebar_height;
+	int use_shadow;
 };
 
 struct theme *

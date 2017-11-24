@@ -396,6 +396,7 @@ theme_create(void)
 	t->titlebar_height = 27;
 	t->frame_radius = 3;
 	t->shadow = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, 128, 128);
+	t->use_shadow = 0;
 	cr = cairo_create(t->shadow);
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 	cairo_set_source_rgba(cr, 0, 0, 0, 1);
@@ -499,7 +500,7 @@ theme_render_frame(struct theme *t,
 	cairo_set_source_rgba(cr, 0, 0, 0, 0);
 	cairo_paint(cr);
 
-	if (flags & THEME_FRAME_MAXIMIZED)
+	if (flags & THEME_FRAME_MAXIMIZED || !t->use_shadow)
 		margin = 0;
 	else {
 		render_shadow(cr, t->shadow,
@@ -585,7 +586,7 @@ theme_get_location(struct theme *t, int x, int y,
 	int vlocation, hlocation, location;
 	int margin, top_margin, grip_size;
 
-	if (flags & THEME_FRAME_MAXIMIZED) {
+	if (flags & THEME_FRAME_MAXIMIZED || !t->use_shadow) {
 		margin = 0;
 		grip_size = 0;
 	} else {

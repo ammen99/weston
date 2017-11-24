@@ -622,8 +622,15 @@ weston_wm_window_get_frame_size(struct weston_wm_window *window,
 		*width = frame_width(window->frame);
 		*height = frame_height(window->frame);
 	} else {
-		*width = window->width + t->margin * 2;
-		*height = window->height + t->margin * 2;
+		if (t->use_shadow)
+		{
+			*width = window->width + t->margin * 2;
+			*height = window->height + t->margin * 2;
+		} else
+		{
+			*width = window->width;
+			*height = window->height;
+		}
 	}
 }
 
@@ -639,8 +646,15 @@ weston_wm_window_get_child_position(struct weston_wm_window *window,
 	} else if (window->decorate && window->frame) {
 		frame_interior(window->frame, x, y, NULL, NULL);
 	} else {
-		*x = t->margin;
-		*y = t->margin;
+		if (t->use_shadow)
+		{
+			*x = t->margin;
+			*y = t->margin;
+		} else
+		{
+			*x = 0;
+			*y = 0;
+		}
 	}
 }
 
@@ -1015,6 +1029,46 @@ weston_wm_window_create_frame(struct weston_wm_window *window)
 	int x, y, width, height;
 	int buttons = FRAME_BUTTON_CLOSE;
 
+	xcb_visualid_t visual;
+	xcb_colormap_t colormap;
+	xcb_render_pictforminfo_t format;
+	int8_t window_depth = 32;
+
+	if (wm->theme->use_shadow)
+	{
+		visual = wm->visual_id;
+		colormap = wm->colormap;
+		format = wm->format_rgba;
+	} else
+	{
+		xcb_get_window_attributes_cookie_t cookie = xcb_get_window_attributes(window->wm->conn, window->id);
+		xcb_get_window_attributes_reply_t *reply = xcb_get_window_attributes_reply(window->wm->conn, cookie, NULL);
+                xcb_depth_iterator_t depth_iter = xcb_screen_allowed_depths_iterator (wm->screen);
+
+		for (; depth_iter.rem; xcb_depth_next (&depth_iter))
+		{
+			xcb_visualtype_iterator_t visual_iter;
+
+			visual_iter = xcb_depth_visuals_iterator (depth_iter.data);
+			for (; visual_iter.rem; xcb_visualtype_next (&visual_iter))
+			{
+				if (reply->visual == visual_iter.data->visual_id)
+				{
+					window_depth = depth_iter.data->depth;
+					if (depth_iter.data->depth == 32)
+						format = wm->format_rgba;
+					else
+						format = wm->format_rgb;
+
+					break;
+				}
+			}
+		}
+
+		visual = reply->visual;
+		colormap = reply->colormap;
+	}
+
 	if (window->decorate & MWM_DECOR_MAXIMIZE)
 		buttons |= FRAME_BUTTON_MAXIMIZE;
 
@@ -1039,18 +1093,18 @@ weston_wm_window_create_frame(struct weston_wm_window *window)
 		XCB_EVENT_MASK_LEAVE_WINDOW |
 		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
 		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
-	values[2] = wm->colormap;
+	values[2] = colormap;
 
 	window->frame_id = xcb_generate_id(wm->conn);
 	xcb_create_window(wm->conn,
-			  32,
+			  window_depth,
 			  window->frame_id,
 			  wm->screen->root,
 			  0, 0,
 			  width, height,
 			  0,
 			  XCB_WINDOW_CLASS_INPUT_OUTPUT,
-			  wm->visual_id,
+			  visual,
 			  XCB_CW_BORDER_PIXEL |
 			  XCB_CW_EVENT_MASK |
 			  XCB_CW_COLORMAP, values);
@@ -1065,7 +1119,7 @@ weston_wm_window_create_frame(struct weston_wm_window *window)
 		cairo_xcb_surface_create_with_xrender_format(wm->conn,
 							     wm->screen,
 							     window->frame_id,
-							     &wm->format_rgba,
+							     &format,
 							     width, height);
 
 	hash_table_insert(wm->window_hash, window->frame_id, window);
@@ -1237,7 +1291,7 @@ weston_wm_window_draw_decoration(struct weston_wm_window *window)
 	} else if (window->decorate) {
 		frame_set_title(window->frame, window->name);
 		frame_repaint(window->frame, cr);
-	} else {
+	} else if (window->wm->theme->use_shadow) {
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 		cairo_set_source_rgba(cr, 0, 0, 0, 0);
 		cairo_paint(cr);
