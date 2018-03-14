@@ -659,6 +659,33 @@ weston_wm_window_get_input_rect(struct weston_wm_window *window,
 }
 
 static void
+weston_wm_window_shape(struct weston_wm_window *window)
+{
+	struct weston_wm *wm = window->wm;
+	xcb_rectangle_t rect;
+	int x, y, width, height;
+
+	if (window->override_redirect || !window->frame)
+		return;
+
+	weston_wm_window_get_input_rect(window, &x, &y, &width, &height);
+
+	rect.x = x;
+	rect.y = y;
+	rect.width = width;
+	rect.height = height;
+
+	/* The window frame was created with position and size which include
+	 * an offset for margins and shadow. Set the input region to ignore
+	 * shadow. */
+	xcb_shape_rectangles(wm->conn,
+			     XCB_SHAPE_SO_SET,
+			     XCB_SHAPE_SK_INPUT,
+			     0, window->frame_id,
+			     0, 0, 1, &rect);
+}
+
+static void
 weston_wm_window_send_configure_notify(struct weston_wm_window *window)
 {
 	xcb_configure_notify_event_t configure_notify;
@@ -789,6 +816,8 @@ weston_wm_handle_configure_notify(struct weston_wm *wm, xcb_generic_event_t *eve
 			xwayland_api->set_xwayland(window->shsurf,
 						   window->x, window->y);
 	}
+
+	weston_wm_window_shape(window);
 }
 
 static void
@@ -983,7 +1012,6 @@ weston_wm_window_create_frame(struct weston_wm_window *window)
 {
 	struct weston_wm *wm = window->wm;
 	uint32_t values[3];
-	xcb_rectangle_t rect;
 	int x, y, width, height;
 	int buttons = FRAME_BUTTON_CLOSE;
 
@@ -1040,26 +1068,9 @@ weston_wm_window_create_frame(struct weston_wm_window *window)
 							     &wm->format_rgba,
 							     width, height);
 
-	weston_wm_window_get_input_rect(window, &x, &y, &width, &height);
-	rect.x = x;
-	rect.y = y;
-	rect.width = width;
-	rect.height = height;
-
-	/* The window frame was created with position and size which include
-	 * an offset for margins and shadow. Set the input region to ignore
-	 * shadow. */
-	xcb_shape_rectangles(wm->conn,
-			     XCB_SHAPE_SO_SET,
-			     XCB_SHAPE_SK_INPUT,
-			     0,
-			     window->frame_id,
-			     0,
-			     0,
-			     1,
-			     &rect);
-
 	hash_table_insert(wm->window_hash, window->frame_id, window);
+
+	weston_wm_window_shape(window);
 }
 
 /*
@@ -2726,6 +2737,8 @@ send_configure(struct weston_surface *surface, int32_t width, int32_t height)
 	window->configure_source =
 		wl_event_loop_add_idle(wm->server->loop,
 				       weston_wm_window_configure, window);
+
+	weston_wm_window_shape(window);
 }
 
 static void
