@@ -462,17 +462,32 @@ gl_schedule_repaint(struct weston_output *output)
 static inline void *
 gl_surface_get_textures(struct weston_surface *surface, int *n_tex)
 {
-	struct gl_surface_state *gs = get_surface_state(surface);
+    struct gl_surface_state *gs = get_surface_state(surface);
 
-	*n_tex = gs->num_textures;
-	return gs->textures;
+    *n_tex = gs->num_textures;
+    return gs->textures;
+}
+
+static inline struct weston_geometry
+gl_output_gl_viewport(struct weston_output *output)
+{
+    struct gl_output_state *go = get_output_state(output);
+    struct weston_geometry viewport;
+
+    viewport.x      = go->borders[GL_RENDERER_BORDER_LEFT].width;
+    viewport.y      = go->borders[GL_RENDERER_BORDER_BOTTOM].height;
+    viewport.width  = output->current_mode->width;
+    viewport.height = output->current_mode->height;
+
+    return viewport;
 }
 
 static const struct weston_gl_renderer_api gl_renderer_api = {
-	gl_set_custom_renderer,
-	gl_set_post_render,
-	gl_schedule_repaint,
-	gl_surface_get_textures
+    gl_set_custom_renderer,
+    gl_set_post_render,
+    gl_schedule_repaint,
+    gl_output_gl_viewport,
+    gl_surface_get_textures
 };
 
 static struct egl_image*
@@ -1359,8 +1374,6 @@ gl_renderer_repaint_output(struct weston_output *output,
 	bool swap_buffers_with_damage = gr->swap_buffers_with_damage;
 	if (!gr->custom_renderer || !gr->custom_renderer(output, output_damage))
 		repaint_views(output, &total_damage);
-	else
-		swap_buffers_with_damage = false;
 
 	if (gr->post_render)
 		gr->post_render(output);

@@ -544,7 +544,7 @@ frame_refresh_geometry(struct frame *frame)
 	else
 		titlebar_height = t->width;
 
-	if (frame->flags & FRAME_FLAG_MAXIMIZED) {
+	if ((frame->flags & FRAME_FLAG_MAXIMIZED) || !t->use_shadow) {
 		decoration_width = t->width * 2;
 		decoration_height = t->width + titlebar_height;
 

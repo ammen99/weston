@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 #include "plugin-registry.h"
+#include "compositor.h"
 #include <stdbool.h>
 #include <pixman.h>
 
@@ -75,6 +76,15 @@ struct weston_gl_renderer_api {
 	 * the drm-backend
 	 */
 	void (*schedule_repaint) (struct weston_output *output);
+
+	/* Get the output viewport
+	 *
+	 * \param output The output whose viewport is queried
+	 *
+     * This function returns the GL viewport taking into consideration
+     * the output borders. Useful for custom renderers when running nested
+	 */
+	struct weston_geometry (*get_output_gl_viewport) (struct weston_output *output);
 
 	/* Get the gl-renderer's textures for a given surface
 	 *
