@@ -44,6 +44,17 @@ struct weston_surface;
 typedef bool (*custom_renderer_func_t) (struct weston_output*, pixman_region32_t*);
 typedef void (*post_render_func_t) (struct weston_output*);
 
+enum gl_texture_format
+{
+	GL_TEXTURE_FORMAT_RGBA,
+	GL_TEXTURE_FORMAT_RGBX,
+	GL_TEXTURE_FORMAT_EGL,
+	GL_TEXTURE_FORMAT_Y_UV,
+	GL_TEXTURE_FORMAT_Y_U_V,
+	GL_TEXTURE_FORMAT_Y_XUXV,
+	GL_TEXTURE_FORMAT_SOLID
+};
+
 struct weston_gl_renderer_api {
 	/* Set custom renderer function
 	 *
@@ -81,8 +92,8 @@ struct weston_gl_renderer_api {
 	 *
 	 * \param output The output whose viewport is queried
 	 *
-     * This function returns the GL viewport taking into consideration
-     * the output borders. Useful for custom renderers when running nested
+	 * This function returns the GL viewport taking into consideration
+	 * the output borders. Useful for custom renderers when running nested
 	 */
 	struct weston_geometry (*get_output_gl_viewport) (struct weston_output *output);
 
@@ -92,9 +103,15 @@ struct weston_gl_renderer_api {
 	 * \param n_tex The number of textures for this surface
 	 */
 	void* (*surface_get_textures)(struct weston_surface *surface, int *n_tex);
+
+	/* Get the texture format
+	 *
+	 * \param surface The surface whose textures are queried
+	 */
+	enum gl_texture_format (*surface_get_texture_format)(struct weston_surface *surface, uint32_t *target);
 };
 
-	static inline const struct weston_gl_renderer_api *
+static inline const struct weston_gl_renderer_api *
 weston_gl_renderer_get_api(struct weston_compositor *compositor)
 {
 	const void *api;
